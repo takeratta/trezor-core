@@ -1,3 +1,4 @@
+from apps.wallet.sign_tx.multisig import *
 from apps.wallet.sign_tx.writers import *
 
 
@@ -107,6 +108,30 @@ def output_script_paytoopreturn(data: bytes) -> bytearray:
     write_op_push(w, len(data))
     w.extend(data)
     return w
+
+
+def output_script_p2sh_multisig(multisig) -> bytes:
+    w = bytearray_with_cap(1 + 34 * len(multisig.pubkeys) + 1 + 1)
+    write_script_p2sh_multisig(w, multisig)
+    return w
+
+
+def write_script_p2sh_multisig(w: bytearray, multisig) -> bytes:
+    pubkeys = multisig.pubkeys
+    m = multisig.m
+    n = len(pubkeys)
+
+    if n < 1 or n > 15:
+        raise Exception
+    if m < 1 or m > 15:
+        raise Exception
+
+    w.append(0x50 + m)
+    for hd in pubkeys:
+        w.append(33)  # OP_PUSH 33
+        write_bytes(w, multisig_get_pubkey(hd))
+    w.append(0x50 + n)
+    w.append(0xAE)  # OP_CHECKMULTISIG
 
 
 # === helpers
