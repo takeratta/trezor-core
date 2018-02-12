@@ -18,25 +18,36 @@ async def layout_get_address(ctx, msg):
     node = await seed.derive_node(ctx, address_n)
 
     address = addresses.get_address(msg.script_type, coin, node)
-
+    res = False
     if msg.show_display:
-        await _show_address(ctx, address)
+        while not res:
+            res = await _show_address(ctx, address)
+            if not res:
+                res = await _show_qr(ctx, address)
 
     return Address(address=address)
 
-
-async def _show_address(ctx, address):
+async def _show_qr(ctx, address):
     from trezor.messages.ButtonRequestType import Address
     from trezor.ui.text import Text
     from trezor.ui.qr import Qr
     from trezor.ui.container import Container
-    from ..common.confirm import require_confirm
+    from ..common.confirm import confirm
+
+    content = Container(
+        Qr(address, (120, 115), 4),
+        Text('Confirm address', ui.ICON_RESET, ui.MONO))
+    return await confirm(ctx, content, code=Address, cancel='Address', cancel_style=ui.BTN_KEY)
+
+async def _show_address(ctx, address):
+    from trezor.messages.ButtonRequestType import Address
+    from trezor.ui.text import Text
+    from trezor.ui.container import Container
+    from ..common.confirm import confirm
 
     lines = _split_address(address)
-    content = Container(
-        Qr(address, (120, 135), 3),
-        Text('Confirm address', ui.ICON_RESET, ui.MONO, *lines))
-    await require_confirm(ctx, content, code=Address)
+    content = Container(Text('Confirm address', ui.ICON_RESET, ui.MONO, *lines))
+    return await confirm(ctx, content, code=Address, cancel='QR', cancel_style=ui.BTN_KEY)
 
 
 def _split_address(address):
